@@ -114,7 +114,7 @@ public class PostService {
 	    
 	    if (mediaPost.getMediaPlatform().contains("LinkedIn")) {
 	        if (socialAccounts == null || socialAccounts.getLinkedInProfileDto() == null) {
-	            structure.setMessage("Please select social media platform");
+	            structure.setMessage("Please connect your LinkedIn account");
 	            structure.setCode(HttpStatus.NOT_FOUND.value());
 	            structure.setPlatform("LinkedIn");
 	            structure.setStatus("error");
@@ -137,7 +137,7 @@ public class PostService {
 	        } else {
 	            // Neither file nor caption are present
 	            structure.setStatus("Failure");
-	            structure.setMessage("Either file or caption must be provided.");
+	            structure.setMessage("Please connect your LinkedIn account");
 	            structure.setCode(HttpStatus.BAD_REQUEST.value());
 	            return new ResponseEntity<ResponseWrapper>(config.getResponseWrapper(structure), HttpStatus.BAD_REQUEST);
 	        }
@@ -150,7 +150,7 @@ public class PostService {
 	        return new ResponseEntity<ResponseWrapper>(config.getResponseWrapper(structure), HttpStatus.valueOf(response.getCode()));
 	    }
 	    
-	    structure.setMessage("Invalid platform selected");
+	    structure.setMessage("Please connect your LinkedIn account");
 	    structure.setCode(HttpStatus.BAD_REQUEST.value());
 	    structure.setPlatform("LinkedIn");
 	    structure.setStatus("error");
@@ -189,7 +189,7 @@ public class PostService {
 	        } else {
 	            // Neither file nor caption are present
 	            structure.setStatus("Failure");
-	            structure.setMessage("Either file or caption must be provided.");
+	            structure.setMessage("Please connect your LinkedIn account");
 	            structure.setCode(HttpStatus.BAD_REQUEST.value());
 	            return new ResponseEntity<ResponseWrapper>(config.getResponseWrapper(structure), HttpStatus.BAD_REQUEST);
 	        }
@@ -202,7 +202,7 @@ public class PostService {
 	        return new ResponseEntity<ResponseWrapper>(config.getResponseWrapper(structure), HttpStatus.valueOf(response.getCode()));
 	    }
 
-	    structure.setMessage("Invalid platform selected");
+	    structure.setMessage("Please connect your LinkedIn account");
 	    structure.setCode(HttpStatus.BAD_REQUEST.value());
 	    structure.setPlatform("LinkedIn");
 	    structure.setStatus("error");

@@ -137,7 +137,7 @@ public class LinkedInProfileService {
 
         if (organizationAclsResponse.getStatusCode() == HttpStatus.OK) {
             structure.setCode(200);
-            structure.setMessage("Success");
+            structure.setMessage("LinkedIn Profile Connected Successfully");
             structure.setStatus("success");
             structure.setPlatform("LinkedIn");
             structure.setData(organizationAclsResponse.getBody());
@@ -154,7 +154,7 @@ public class LinkedInProfileService {
 
     
 
-	public ResponseEntity<String> getProfileInfo(String accessToken,QuantumShareUser user) {
+    public ResponseEntity<String> getProfileInfo(String accessToken, QuantumShareUser user) {
         String userInfoUrl = "https://api.linkedin.com/v2/me";
 
         HttpHeaders headers = new HttpHeaders();
@@ -177,15 +177,35 @@ public class LinkedInProfileService {
                 String id = rootNode.path("id").asText();
 
                 String username = localizedFirstName + " " + localizedLastName;
-                String customResponse = "{ \"profile_sub\": \"" + id + "\", \"LinkedInUsername\": \"" + username + "\", \"access_token\": \"" + accessToken + "\" }";
+
+                // Fetch profile image URL
+                ResponseStructure<String> profileImageResponse = getLinkedInProfile(accessToken);
+                String imageUrl = null;
+
+                if (profileImageResponse.getStatus().equals("Success")) {
+                    Object data = profileImageResponse.getData();
+                    if (data instanceof String) {
+                        imageUrl = (String) data;
+                    } else {
+                        // Handle the case where data is not a String
+                        imageUrl = "default_image_url"; // or handle differently as per your application's logic
+                    }
+                } else {
+                    // Handle case where profile image fetch failed
+                    imageUrl = "default_image_url"; // or handle differently as per your application's logic
+                }
+
+
+                // Construct custom response
+                String customResponse = "{ \"profile_sub\": \"" + id + "\", \"LinkedInUsername\": \"" + username + "\", \"access_token\": \"" + accessToken + "\", \"image_url\": \"" + imageUrl + "\" }";
 
                 LinkedInProfileDto linkedInProfileDto = new LinkedInProfileDto();
                 linkedInProfileDto.setLinkedinProfileURN(id);
                 linkedInProfileDto.setLinkedinProfileUserName(username);
                 linkedInProfileDto.setLinkedinProfileAccessToken(accessToken);
+                linkedInProfileDto.setLinkedinProfileImage(imageUrl); // Set profile image URL
 
-                //linkedInProfileDao.saveProfile(linkedInProfileDto);
-                
+                // Save or update LinkedIn profile info
                 SocialAccounts socialAccounts = user.getSocialAccounts();
                 if (socialAccounts == null) {
                     socialAccounts = new SocialAccounts();
@@ -195,8 +215,8 @@ public class LinkedInProfileService {
                     if (socialAccounts.getLinkedInProfileDto() == null) {
                         socialAccounts.setLinkedInProfileDto(linkedInProfileDto);
                     }
-                } 
-                
+                }
+
                 userDao.saveUser(user);
 
                 HttpHeaders customHeaders = new HttpHeaders();
@@ -211,6 +231,73 @@ public class LinkedInProfileService {
             return response;
         }
     }
+
+
+    public ResponseStructure<String> getLinkedInProfile(String accessToken) {
+        ResponseStructure<String> responseStructure = new ResponseStructure<>();
+        RestTemplate restTemplate = new RestTemplate();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.TEXT_PLAIN);
+        headers.set("Authorization", "Bearer " + accessToken);
+
+        HttpEntity<String> entity = new HttpEntity<>("", headers);
+
+        try {
+            ResponseEntity<String> response = restTemplate.exchange(
+                    "https://api.linkedin.com/v2/me?projection=(id,profilePicture(displayImage~:playableStreams))",
+                    HttpMethod.GET,
+                    entity,
+                    String.class
+            );
+
+            if (response.getStatusCode() == HttpStatus.OK) {
+                String responseBody = response.getBody();
+                ObjectMapper objectMapper = new ObjectMapper();
+                JsonNode rootNode = objectMapper.readTree(responseBody);
+                JsonNode elements = rootNode.path("profilePicture").path("displayImage~").path("elements");
+
+                String imageUrl = null;
+                if (elements.isArray() && elements.size() > 0) {
+                    for (JsonNode element : elements) {
+                        JsonNode displaySize = element.path("data").path("com.linkedin.digitalmedia.mediaartifact.StillImage").path("displaySize");
+                        if (displaySize.path("width").asInt() == 200 && displaySize.path("height").asInt() == 200) {
+                            JsonNode identifiers = element.path("identifiers");
+                            if (identifiers.isArray() && identifiers.size() > 0) {
+                                imageUrl = identifiers.get(0).path("identifier").asText();
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if (imageUrl != null) {
+                    responseStructure.setStatus("Success");
+                    responseStructure.setMessage("Profile fetched successfully");
+                    responseStructure.setCode(HttpStatus.OK.value());
+                    responseStructure.setData(imageUrl);
+                } else {
+                    responseStructure.setStatus("Failure");
+                    responseStructure.setMessage("Profile image URL not found");
+                    responseStructure.setCode(HttpStatus.NOT_FOUND.value());
+                    responseStructure.setData(null);
+                }
+            } else {
+                responseStructure.setStatus("Failure");
+                responseStructure.setMessage("Failed to fetch profile: " + response.getStatusCode());
+                responseStructure.setCode(response.getStatusCode().value());
+                responseStructure.setData(null);
+            }
+        } catch (IOException e) {
+            responseStructure.setStatus("Failure");
+            responseStructure.setMessage("Exception occurred: " + e.getMessage());
+            responseStructure.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+            responseStructure.setData(null);
+        }
+
+        return responseStructure;
+    }
+
 	
 	
 	 public ResponseEntity<ResponseStructure<List<LinkedInPageDto>>> getOrganizationsDetailsByProfile(String code, QuantumShareUser user) throws IOException {
@@ -282,7 +369,7 @@ public class LinkedInProfileService {
 		                // Prepare response structure
 		                ResponseStructure<List<LinkedInPageDto>> structure = new ResponseStructure<>();
 		                structure.setCode(HttpStatus.OK.value());
-		                structure.setMessage("User has associated pages");
+		                structure.setMessage("LinkedIn associated pages");
 		                structure.setStatus("success");
 		                structure.setPlatform("LinkedIn");
 		                structure.setData(data);
@@ -356,7 +443,9 @@ public class LinkedInProfileService {
 		    }
 
 		    // Check if the selected page DTO is valid
-		    if (selectedLinkedInPageDto == null || selectedLinkedInPageDto.getLinkedinPageURN() == null || selectedLinkedInPageDto.getLinkedinPageName() == null || selectedLinkedInPageDto.getLinkedinPageAccessToken() == null) {
+		    if (selectedLinkedInPageDto == null || selectedLinkedInPageDto.getLinkedinPageURN() == null 
+		            || selectedLinkedInPageDto.getLinkedinPageName() == null 
+		            || selectedLinkedInPageDto.getLinkedinPageAccessToken() == null) {
 		        ResponseStructure<String> response = new ResponseStructure<>();
 		        response.setCode(HttpStatus.BAD_REQUEST.value());
 		        response.setMessage("Invalid selected page data");
@@ -364,50 +453,132 @@ public class LinkedInProfileService {
 		        return ResponseEntity.badRequest().body(response);
 		    }
 
-		    // Create a new social accounts object if it doesn't exist
-		    SocialAccounts socialAccounts = user.getSocialAccounts();
-		    if (socialAccounts == null) {
-		        socialAccounts = new SocialAccounts();
-		    }
-		    
-		    // Retrieve or create the LinkedIn profile DTO
-		    LinkedInProfileDto linkedInProfileDto = socialAccounts.getLinkedInProfileDto();
-		    if (linkedInProfileDto == null) {
-		        linkedInProfileDto = new LinkedInProfileDto();
-		        socialAccounts.setLinkedInProfileDto(linkedInProfileDto);
-		    }
-		    
-		    // Save the LinkedIn page
-		    selectedLinkedInPageDto = linkedInPageDao.save(selectedLinkedInPageDto);
-
 		    // Extract only the value from the URN
-		    String organizationId = selectedLinkedInPageDto.getLinkedinPageURN().substring(selectedLinkedInPageDto.getLinkedinPageURN().lastIndexOf(':') + 1);
+		    String organizationId = selectedLinkedInPageDto.getLinkedinPageURN().substring(
+		        selectedLinkedInPageDto.getLinkedinPageURN().lastIndexOf(':') + 1);
 
-		    // Set the extracted organization ID back to the DTO
-		    selectedLinkedInPageDto.setLinkedinPageURN(organizationId);
+		    // Fetch the organization logo URL
+		    ResponseStructure<String> logoResponse = getOrganizationLogo(selectedLinkedInPageDto.getLinkedinPageAccessToken(), organizationId);
 
-		    // Associate the selected page with the LinkedIn profile
-		    selectedLinkedInPageDto.setProfile(linkedInProfileDto);
+		    if (logoResponse.getCode() == HttpStatus.OK.value()) {
+		        // Logo URL fetched successfully
+		        String logoUrl = (String) logoResponse.getData();
 
-		    // Add the selected page to the profile's list of pages
-		    List<LinkedInPageDto> pages = new ArrayList<>();
-		    pages.add(selectedLinkedInPageDto);
-		    linkedInProfileDto.setPages(pages);
+		        // Save logo URL into selectedLinkedInPageDto
+		        selectedLinkedInPageDto.setLinkedinPageImage(logoUrl);
 
-		    // Update the user's social accounts
-		    user.setSocialAccounts(socialAccounts);
-		    
-		    // Save the user
-		    userDao.saveUser(user);
-		    
-		    // Prepare the response
-		    ResponseStructure<String> response = new ResponseStructure<>();
-		    response.setCode(HttpStatus.OK.value());
-		    response.setMessage("Selected page saved successfully");
-		    response.setStatus("success"); 
-		    response.setPlatform("LinkedIn");
-		    response.setData(selectedLinkedInPageDto.getLinkedinPageName()); // You can change this to any other relevant data you want to return
+		        // Create a new social accounts object if it doesn't exist
+		        SocialAccounts socialAccounts = user.getSocialAccounts();
+		        if (socialAccounts == null) {
+		            socialAccounts = new SocialAccounts();
+		        }
 
-		    return ResponseEntity.ok(response);
+		        // Retrieve or create the LinkedIn profile DTO
+		        LinkedInProfileDto linkedInProfileDto = socialAccounts.getLinkedInProfileDto();
+		        if (linkedInProfileDto == null) {
+		            linkedInProfileDto = new LinkedInProfileDto();
+		            socialAccounts.setLinkedInProfileDto(linkedInProfileDto);
+		        }
+
+		        // Set the extracted organization ID back to the DTO
+		        selectedLinkedInPageDto.setLinkedinPageURN(organizationId);
+
+		        // Associate the selected page with the LinkedIn profile
+		        selectedLinkedInPageDto.setProfile(linkedInProfileDto);
+
+		        // Add the selected page to the profile's list of pages
+		        List<LinkedInPageDto> pages = linkedInProfileDto.getPages();
+		        if (pages == null) {
+		            pages = new ArrayList<>();
+		        }
+		        pages.add(selectedLinkedInPageDto);
+		        linkedInProfileDto.setPages(pages);
+
+		        // Update the user's social accounts
+		        user.setSocialAccounts(socialAccounts);
+
+		        // Save the updated user
+		        userDao.saveUser(user);
+
+		        // Prepare success response
+		        ResponseStructure<String> response = new ResponseStructure<>();
+		        response.setCode(HttpStatus.OK.value());
+		        response.setMessage("LinkedIn Page Connected Successfully. Image URL: " + logoUrl);
+		        response.setStatus("success");
+		        response.setPlatform("LinkedIn");
+		        response.setData("Selected page: " + selectedLinkedInPageDto.getLinkedinPageName());
+
+		        return ResponseEntity.ok(response);
+		    } else {
+		        // Failed to fetch logo URL, prepare failure response
+		        ResponseStructure<String> response = new ResponseStructure<>();
+		        response.setCode(logoResponse.getCode());
+		        response.setMessage("Failed to fetch organization logo: " + logoResponse.getMessage());
+		        response.setStatus("error");
+		        return ResponseEntity.status(logoResponse.getCode()).body(response);
+		    }
+		}
+
+		public ResponseStructure<String> getOrganizationLogo(String accessToken, String organizationId) {
+		    ResponseStructure<String> responseStructure = new ResponseStructure<>();
+		    RestTemplate restTemplate = new RestTemplate();
+
+		    HttpHeaders headers = new HttpHeaders();
+		    headers.setContentType(MediaType.APPLICATION_JSON);
+		    headers.set("Authorization", "Bearer " + accessToken);
+		    headers.set("LinkedIn-Version", "202405");
+		    headers.set("X-Restli-Protocol-Version", "2.0.0");
+
+		    HttpEntity<String> entity = new HttpEntity<>("", headers);
+
+		    try {
+		        ResponseEntity<String> response = restTemplate.exchange(
+		                "https://api.linkedin.com/v2/organizations/" + organizationId + "?projection=(logoV2(original~:playableStreams,cropped~:playableStreams,cropInfo))",
+		                HttpMethod.GET,
+		                entity,
+		                String.class
+		        );
+
+		        if (response.getStatusCode() == HttpStatus.OK) {
+		            ObjectMapper objectMapper = new ObjectMapper();
+		            JsonNode rootNode = objectMapper.readTree(response.getBody());
+
+		            JsonNode elementsNode = rootNode.path("logoV2").path("original~").path("elements");
+		            if (elementsNode.isArray() && elementsNode.size() > 0) {
+		                JsonNode firstElement = elementsNode.get(0);
+		                JsonNode identifiersNode = firstElement.path("identifiers");
+		                if (identifiersNode.isArray() && identifiersNode.size() > 0) {
+		                    String logoUrl = identifiersNode.get(0).path("identifier").asText();
+
+		                    responseStructure.setStatus("Success");
+		                    responseStructure.setMessage("Organization logo fetched successfully");
+		                    responseStructure.setCode(HttpStatus.OK.value());
+		                    responseStructure.setData(logoUrl);
+		                } else {
+		                    responseStructure.setStatus("Failure");
+		                    responseStructure.setMessage("No logo URL found in response");
+		                    responseStructure.setCode(HttpStatus.NOT_FOUND.value());
+		                    responseStructure.setData(null);
+		                }
+		            } else {
+		                responseStructure.setStatus("Failure");
+		                responseStructure.setMessage("No logo elements found in response");
+		                responseStructure.setCode(HttpStatus.NOT_FOUND.value());
+		                responseStructure.setData(null);
+		            }
+		        } else {
+		            responseStructure.setStatus("Failure");
+		            responseStructure.setMessage("Failed to fetch organization logo: " + response.getStatusCode());
+		            responseStructure.setCode(response.getStatusCode().value());
+		            responseStructure.setData(null);
+		        }
+		    } catch (Exception e) {
+		        responseStructure.setStatus("Failure");
+		        responseStructure.setMessage("Exception occurred: " + e.getMessage());
+		        responseStructure.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+		        responseStructure.setData(null);
+		    }
+
+		    return responseStructure;
 		}
 } 

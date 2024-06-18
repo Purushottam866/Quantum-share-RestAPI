@@ -23,6 +23,7 @@ public class LinkedInPageDto {
 
     private String linkedinPageURN;
     private String linkedinPageName;
+    private String linkedinPageImage;
     
     @Column(length = 1000)
     private String linkedinPageAccessToken;

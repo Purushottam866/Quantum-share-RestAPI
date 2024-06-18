@@ -109,6 +109,7 @@ public class SocialMediaLogoutController {
 	@GetMapping("/disconnect/linkedin/page")
 	public ResponseEntity<ResponseStructure<String>> disconnectLinkedInPage() {
 		String token = request.getHeader("Authorization");
+		System.out.println("token " + token);
 		if (token == null || !token.startsWith("Bearer ")) {
 			structure.setCode(115);
 			structure.setMessage("Missing or invalid authorization token");
@@ -118,7 +119,7 @@ public class SocialMediaLogoutController {
 			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.UNAUTHORIZED);
 		}
 		String jwtToken = token.substring(7); // remove "Bearer " prefix
-		System.out.println(jwtToken);
+		
 		String userId = jwtUtilConfig.extractUserId(jwtToken);
 		QuantumShareUser user = userDao.fetchUser(userId);
 		if (user == null) {

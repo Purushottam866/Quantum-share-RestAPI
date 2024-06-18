@@ -131,7 +131,7 @@ public class SocialMediaLogoutService {
 		linkedInProfileDao.deleteUser(deleteUser);
 		
 		structure.setCode(HttpStatus.OK.value());
-		structure.setMessage("LinkedIn Disconnected Successfully");
+		structure.setMessage("LinkedIn Profile Disconnected Successfully");
 		structure.setPlatform("LinkedIn");
 		structure.setStatus("success");
 		structure.setData(null);
@@ -206,7 +206,7 @@ public class SocialMediaLogoutService {
 	    // Prepare the response
 	    ResponseStructure<String> response = new ResponseStructure<>();
 	    response.setCode(HttpStatus.OK.value());
-	    response.setMessage("Selected page disconnected successfully");
+	    response.setMessage("LinkedIn Page Disconnected Successfully");
 	    response.setStatus("success");
 	    response.setPlatform("LinkedIn");
 	    

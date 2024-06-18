@@ -26,6 +26,7 @@ public class LinkedInProfileDto {
 	    private String linkedinProfileURN;
 	    private String linkedinProfileUserName;
 	    private String linkedinProfileEmail;
+	    private String linkedinProfileImage;
 
 	    @Column(length = 1000)
 	    private String linkedinProfileAccessToken;

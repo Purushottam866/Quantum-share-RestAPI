@@ -54,7 +54,7 @@ public class LinkedInProfilePostService {
 	        
 	        if (responseEntity.getStatusCode() == HttpStatus.CREATED) {
 	            response.setStatus("Success");
-	            response.setMessage("Text Posted To LinkedIn successfully");
+	            response.setMessage("Posted To LinkedIn Profile");
 	            response.setCode(HttpStatus.CREATED.value());
 	            response.setData(responseEntity.getBody());
 	        } else {
@@ -351,7 +351,7 @@ public class LinkedInProfilePostService {
 	        if (responseEntity.getStatusCode() == HttpStatus.CREATED) {
 	            System.out.println("Image with caption created successfully !!");
 	            response.setStatus("Success");
-	            response.setMessage("LinkedIn Post Created successfully");
+	            response.setMessage("Posted To LinkedIn Profile");
 	            response.setCode(HttpStatus.CREATED.value());
 	            response.setData(responseEntity.getBody());
 	        } else {
@@ -391,7 +391,7 @@ public class LinkedInProfilePostService {
 	        ResponseEntity<String> responseEntity = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
 	        if (responseEntity.getStatusCode() == HttpStatus.CREATED) {
 	            response.setStatus("Success");
-	            response.setMessage("Post created successfully");
+	            response.setMessage("Posted To LinkedIn Page");
 	            response.setCode(HttpStatus.CREATED.value());
 	            response.setData(responseEntity.getBody());
 	            System.out.println("Response Body: " + responseEntity.getBody());
@@ -586,7 +586,7 @@ public class LinkedInProfilePostService {
 	        if (responseEntity.getStatusCode() == HttpStatus.CREATED) {
 	            System.out.println("Image with caption created successfully !!");
 	            response.setStatus("Success");
-	            response.setMessage("LinkedIn post created successfully");
+	            response.setMessage("Posted To LinkedIn Page");
 	            response.setCode(HttpStatus.CREATED.value());
 	            response.setData(responseEntity.getBody());
 	        } else {
